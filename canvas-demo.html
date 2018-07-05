@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Video Element Canvas Demo</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+        <style>
+        </style>
+    </head>
+
+    <body>
+        <canvas id="screen" width="1280" height="720"></canvas>
+        <video src="videos/output/720p-part1.mp4" id="video0" width="1280" height="720" hidden></video>
+        <video src="videos/output/720p-part2.mp4" id="video1" width="1280" height="720" hidden></video>
+        <video src="videos/output/720p-part3.mp4" id="video2" width="1280" height="720" hidden></video>
+        <div>
+          <button id="play">Play</button>
+          <button id="pause">Pause</button>
+          <button id="stop">Stop</button>
+          <input  id="position" type="range" min="0" max="100" value="0" step="1" style="width:50%" />
+          <span id="mute">🔊</span>
+          <input  id="volume" type="range" min="0" max="100" value="90" step="1" />
+        </div>
+        <script>
+        var ctx = document.getElementById('screen').getContext("2d")
+        ctx.font="30px Georgia"
+        ctx.fillStyle = 'white'
+        ctx.strokeStyle = 'black'
+        ctx.miterLimit = 2
+        ctx.lineJoin = 'circle'
+        ctx.lineWidth = 1
+        var video0 = document.getElementById('video0')
+        var video1 = document.getElementById('video1')
+        var video2 = document.getElementById('video2')
+        var videos = [video0, video1, video2]
+        var mute = document.getElementById('mute')
+        var isMuted = false
+        var volume = document.getElementById('volume')
+        var currentVideoId = 0
+        var timerId
+        var totalDuration = null
+        var playLock = false // Prevents errors when the asynchronous play call isn't resolved yet, but you try to pause it. 
+
+        function stopTimer() {
+          window.clearInterval(timerId)
+        }
+
+        function drawImage(video) {
+          var text = 'Section ' + (currentVideoId + 1)
+          ctx.drawImage(video, 0, 0, 1280, 720)
+          ctx.strokeText(text, 10, 50)
+          ctx.fillText(text, 10, 50)
+        }
+
+        function onLoadedData(video) {
+          return function() {
+            video0.removeEventListener('loadeddata', onLoadedData)
+            totalDuration += video.duration
+            if (video.id === 'video0') {
+              drawImage(video0)
+            }
+          }
+        }
+
+        function onVideoEnd() {
+          currentVideoId = (++currentVideoId) % videos.length
+
+          stopTimer()
+          if (!this.paused) this.pause(); // IE fix
+
+          if (currentVideoId === videos.length) {
+            // in case of last video, make sure to load 1st video so that it would start from the 1st frame 
+            video0.load()
+          } else {
+            videos[currentVideoId].play()
+          }
+        }
+
+        function setAllVideoVolume(volume) {
+          videos.forEach((video) => {
+            video.volume = volume / 100
+          })
+        }
+
+        document.getElementById('play').addEventListener('click', () => {
+          stopTimer()
+          videos[currentVideoId].play()
+        })
+
+        document.getElementById('pause').addEventListener('click', () => {
+          stopTimer()
+          videos[currentVideoId].pause()
+        })
+
+        document.getElementById('stop').addEventListener('click', () => {
+          stopTimer()
+          videos[currentVideoId].pause()
+          videos[currentVideoId].currentTime = 0
+          currentVideoId = 0
+          videos[currentVideoId].load()
+          window.setInterval(() => {
+            drawImage(videos[currentVideoId])
+          }, 500)
+        })
+
+        mute.addEventListener('click', () => {
+          isMuted = !isMuted
+          if (isMuted) {
+            setAllVideoVolume(0)
+            mute.innerHTML = '🔇'
+          } else {
+            setAllVideoVolume(volume.value)
+            mute.innerHTML = '🔊'
+          }
+        })
+
+        position.addEventListener('input', () => {
+          if (!playLock) {
+            var newTime = totalDuration * position.value / 100
+            var newVideo = 0
+            while (newTime - videos[newVideo].duration > 0) {
+              newTime -= videos[newVideo].duration
+              ++newVideo
+            }
+            stopTimer()
+            videos[currentVideoId].pause()
+            videos[currentVideoId].currentTime = 0
+            currentVideoId = newVideo
+            videos[currentVideoId].currentTime = newTime
+            playLock = true
+            videos[currentVideoId].play().then(() => {
+              playLock = false
+            })
+          }
+        })
+
+        volume.addEventListener('input', () => {
+          setAllVideoVolume(volume.value)
+        })
+
+        videos.forEach((video) => {
+          video.addEventListener('play', () => {
+            timerId = window.setInterval(() => {
+              drawImage(video)
+              var totalCurrentTime = 0;
+              for (var i = 0; i < currentVideoId; ++i) {
+                totalCurrentTime += videos[currentVideoId].duration
+              }
+              totalCurrentTime += videos[currentVideoId].currentTime
+              position.value = totalCurrentTime / totalDuration * 100 >> 0 // Current total position in percentage truncated to integer
+            }, 30)
+          })
+          video.addEventListener('ended', onVideoEnd)
+          video.addEventListener('loadeddata', onLoadedData(video))
+        })
+        video1.load()
+        video2.load()
+        </script>
+    </body>
+</html>

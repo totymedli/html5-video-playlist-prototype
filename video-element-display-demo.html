@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Video Element Display Demo</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+        <style>
+        </style>
+    </head>
+
+    <body>
+        <video src="videos/output/720p-part1.mp4" id="player0" width="1280" height="720" controls style="background:black"></video>
+        <video src="videos/output/720p-part2.mp4" id="player1" width="1280" height="720" controls style="background:black;display:none"></video>
+        <video src="videos/output/720p-part3.mp4" id="player2" width="1280" height="720" controls style="background:black;display:none"></video>
+        <script>
+        var nextVideo = 1
+        var currentPlayer = document.getElementById('player0')
+        var nextPlayer = document.getElementById('player' + nextVideo)
+
+        var onEnded = function () {
+          currentPlayer.style.display = 'none'
+          nextPlayer.style.display = 'block'
+          nextPlayer.play()
+          currentPlayer = nextPlayer
+          nextVideo = (++nextVideo) % 3
+          nextPlayer = document.getElementById('player' + nextVideo)
+        }
+
+        for (var i = 0; i < 3; ++i) {
+            document.getElementById('player' + i).addEventListener('ended', onEnded)
+        }
+        </script>
+    </body>
+</html>

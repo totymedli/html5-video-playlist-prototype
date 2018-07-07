@@ -17,15 +17,15 @@
         <video src="videos/output/720p-part2.mp4" id="video1" width="1280" height="720" hidden></video>
         <video src="videos/output/720p-part3.mp4" id="video2" width="1280" height="720" hidden></video>
         <div>
-          <button id="play">Play</button>
-          <button id="pause">Pause</button>
+          <button id="play-pause">Play</button>
           <button id="stop">Stop</button>
           <input  id="position" type="range" min="0" max="100" value="0" step="1" style="width:50%" />
           <span id="mute">🔊</span>
           <input  id="volume" type="range" min="0" max="100" value="90" step="1" />
         </div>
         <script>
-        var ctx = document.getElementById('screen').getContext("2d")
+        var screen = document.getElementById('screen')
+        var ctx = screen.getContext("2d")
         ctx.font="30px Georgia"
         ctx.fillStyle = 'white'
         ctx.strokeStyle = 'black'
@@ -36,19 +36,21 @@
         var video1 = document.getElementById('video1')
         var video2 = document.getElementById('video2')
         var videos = [video0, video1, video2]
+        var playPause = document.getElementById('play-pause')
         var mute = document.getElementById('mute')
         var isMuted = false
         var volume = document.getElementById('volume')
         var currentVideoId = 0
-        var timerId
+        var renderTimerId
         var totalDuration = null
         var playLock = false // Prevents errors when the asynchronous play call isn't resolved yet, but you try to pause it. 
+        var isPlaying = false
 
         function stopTimer() {
-          window.clearInterval(timerId)
+          window.clearInterval(renderTimerId)
         }
 
-        function drawImage(video) {
+        function drawFrame(video) {
           var text = 'Section ' + (currentVideoId + 1)
           ctx.drawImage(video, 0, 0, 1280, 720)
           ctx.strokeText(text, 10, 50)
@@ -60,13 +62,17 @@
             video0.removeEventListener('loadeddata', onLoadedData)
             totalDuration += video.duration
             if (video.id === 'video0') {
-              drawImage(video0)
+              drawFrame(video0)
             }
           }
         }
 
         function onVideoEnd() {
-          currentVideoId = (++currentVideoId) % videos.length
+          if (currentVideoId < videos.length) {
+            ++currentVideoId
+          } else {
+
+          }
 
           stopTimer()
           if (!this.paused) this.pause(); // IE fix
@@ -85,15 +91,18 @@
           })
         }
 
-        document.getElementById('play').addEventListener('click', () => {
+        function onPlayPause() {
           stopTimer()
-          videos[currentVideoId].play()
-        })
+          if (isPlaying) {
+            videos[currentVideoId].pause()
+            playPause.innerHTML = 'Play'
+          } else {
+            videos[currentVideoId].play()
+            playPause.innerHTML = 'Pause'
+          }
+          isPlaying = !isPlaying
+        }
 
-        document.getElementById('pause').addEventListener('click', () => {
-          stopTimer()
-          videos[currentVideoId].pause()
-        })
 
         document.getElementById('stop').addEventListener('click', () => {
           stopTimer()
@@ -102,10 +111,12 @@
           currentVideoId = 0
           videos[currentVideoId].load()
           window.setInterval(() => {
-            drawImage(videos[currentVideoId])
+            drawFrame(videos[currentVideoId])
           }, 500)
         })
 
+        screen.addEventListener('click', onPlayPause)
+        playPause.addEventListener('click', onPlayPause)
         mute.addEventListener('click', () => {
           isMuted = !isMuted
           if (isMuted) {
@@ -143,8 +154,8 @@
 
         videos.forEach((video) => {
           video.addEventListener('play', () => {
-            timerId = window.setInterval(() => {
-              drawImage(video)
+            renderTimerId = window.setInterval(() => {
+              drawFrame(video)
               var totalCurrentTime = 0;
               for (var i = 0; i < currentVideoId; ++i) {
                 totalCurrentTime += videos[currentVideoId].duration
